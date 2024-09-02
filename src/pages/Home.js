@@ -23,7 +23,7 @@ const Home = () => {
             Sistemas Digitais
           </Link>
           <Link
-            to="/continuous"
+            to="/continuo"
             className="bg-green-700 hover:bg-green-800 text-white font-semibold py-2 px-4 rounded-lg shadow transition duration-300"
           >
             Sistemas Contínuos

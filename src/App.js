@@ -10,7 +10,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/digital" element={<Digital />} />
-        <Route path="/continuous" element={<Continuous />} />
+        <Route path="/continuo" element={<Continuous />} />
       </Routes>
     </Router>
   );

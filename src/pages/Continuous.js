@@ -1,18 +1,61 @@
 import React, { useState, useEffect } from 'react';
-import { Line } from 'react-chartjs-2';
 import Button from '../components/Button';
-import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend } from 'chart.js';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  LogarithmicScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+} from 'chart.js';
 
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend);
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  LogarithmicScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend
+);
 
 const Continuous = () => {
+  const [tau, setTau] = useState('');
   const [activeStrategy, setActiveStrategy] = useState('');
   const [pidValues, setPidValues] = useState({ kp: 0, ki: 0, kd: 0 });
+  const [stepResponse, setStepResponse] = useState('');
+  const [bode, setBode] = useState('');
+  const [rootLocus, setRootLocus] = useState('');
 
   const strategies = ['P', 'PI', 'PD', 'PID'];
 
+  const fetchControlData = async (controlType) => {
+    try {
+      const response = await fetch(`http://localhost:8000/continuo/${controlType.toLowerCase()}?tau=${tau}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch control data');
+      }
+      const data = await response.json();
+      if (data.step_response) {
+        setStepResponse(data.step_response);
+      }
+      if (data.bode_plot) {
+        setBode(data.bode_plot);
+      }
+      if (data.root_locus) {
+        setRootLocus(data.root_locus);
+      }
+    } catch (error) {
+      console.error('Error fetching control data:', error);
+    }
+  };
+
   useEffect(() => {
-    const websocket = new WebSocket('ws://localhost:8080'); // Alterar para o URL do seu servidor WebSocket
+    const websocket = new WebSocket('ws://localhost:8000/ws');
 
     websocket.onopen = () => {
       console.log('WebSocket connected');
@@ -32,41 +75,17 @@ const Continuous = () => {
     };
   }, []);
 
-  // Configuração dos dados dos gráficos
-  const kpData = {
-    labels: ['0s', '1s', '2s', '3s', '4s', '5s'],
-    datasets: [
-      {
-        label: 'Kp',
-        data: [pidValues.kp, pidValues.kp * 1.1, pidValues.kp * 1.2, pidValues.kp * 1.3, pidValues.kp * 1.4, pidValues.kp * 1.5],
-        borderColor: 'rgba(75, 192, 192, 1)',
-        backgroundColor: 'rgba(75, 192, 192, 0.2)',
-      },
-    ],
+  const handleStrategyClick = (strategy) => {
+    setActiveStrategy(strategy);
+    fetchControlData(strategy);
   };
 
-  const kiData = {
-    labels: ['0s', '1s', '2s', '3s', '4s', '5s'],
-    datasets: [
-      {
-        label: 'Ki',
-        data: [pidValues.ki, pidValues.ki * 1.1, pidValues.ki * 1.2, pidValues.ki * 1.3, pidValues.ki * 1.4, pidValues.ki * 1.5],
-        borderColor: 'rgba(54, 162, 235, 1)',
-        backgroundColor: 'rgba(54, 162, 235, 0.2)',
-      },
-    ],
-  };
-
-  const kdData = {
-    labels: ['0s', '1s', '2s', '3s', '4s', '5s'],
-    datasets: [
-      {
-        label: 'Kd',
-        data: [pidValues.kd, pidValues.kd * 1.1, pidValues.kd * 1.2, pidValues.kd * 1.3, pidValues.kd * 1.4, pidValues.kd * 1.5],
-        borderColor: 'rgba(153, 102, 255, 1)',
-        backgroundColor: 'rgba(153, 102, 255, 0.2)',
-      },
-    ],
+  const handleInputChange = (e) => {
+    const value = e.target.value;
+    // Permitir apenas números e ponto decimal
+    if (/^\d*\.?\d*$/.test(value)) {
+      setTau(value);
+    }
   };
 
   return (
@@ -80,17 +99,30 @@ const Continuous = () => {
             {strategies.map((strategy) => (
               <button
                 key={strategy}
-                onClick={() => setActiveStrategy(strategy)}
-                className={`py-2 px-4 rounded-lg transition duration-300 ${
-                  activeStrategy === strategy
-                    ? 'bg-green-600 text-white'
-                    : 'bg-gray-300 text-gray-700'
-                }`}
+                onClick={() => handleStrategyClick(strategy)}
+                className={`py-2 px-4 rounded-lg transition duration-300 ${activeStrategy === strategy
+                  ? 'bg-green-600 text-white'
+                  : 'bg-gray-300 text-gray-700'
+                  }`}
               >
                 {strategy}
               </button>
             ))}
           </div>
+        </div>
+
+        <div className="mb-8">
+          <label htmlFor="tau" className="block text-lg font-medium text-gray-700 mb-2">
+            Tau:
+          </label>
+          <input
+            type="text"
+            id="tau"
+            value={tau}
+            onChange={handleInputChange}
+            className="w-full border border-gray-300 rounded-md p-2 text-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="Insira o valor de tau"
+          />
         </div>
 
         <div className="mb-8">
@@ -106,17 +138,31 @@ const Continuous = () => {
       </div>
 
       <div className="flex flex-col space-y-6 ml-6">
-        <div className="bg-white rounded-lg shadow-lg p-4 w-80">
-          <h3 className="text-lg font-medium text-gray-800 mb-2">Gráfico Kp</h3>
-          <Line data={kpData} />
+        <div className="bg-white rounded-lg shadow-lg p-4 w-[500px]">
+          <h3 className="text-lg font-medium text-gray-800 mb-2">Gráfico Lugar das Raízes</h3>
+          {rootLocus ? (
+            <img src={`data:image/png;base64,${rootLocus}`} alt="Root Locus Plot" />
+          ) : (
+            <p>Aguardando a seleção do método de controle...</p>
+          )}
         </div>
-        <div className="bg-white rounded-lg shadow-lg p-4 w-80">
-          <h3 className="text-lg font-medium text-gray-800 mb-2">Gráfico Ki</h3>
-          <Line data={kiData} />
+
+        <div className="bg-white rounded-lg shadow-lg p-4 w-[500px]">
+          <h3 className="text-lg font-medium text-gray-800 mb-2">Gráfico Step Response</h3>
+          {stepResponse ? (
+            <img src={`data:image/png;base64,${stepResponse}`} alt="Step Response Plot" />
+          ) : (
+            <p>Aguardando a seleção do método de controle...</p>
+          )}
         </div>
-        <div className="bg-white rounded-lg shadow-lg p-4 w-80">
-          <h3 className="text-lg font-medium text-gray-800 mb-2">Gráfico Kd</h3>
-          <Line data={kdData} />
+
+        <div className="bg-white rounded-lg shadow-lg p-4 w-[500px]">
+          <h3 className="text-lg font-medium text-gray-800 mb-2">Diagrama de Bode</h3>
+          {bode ? (
+            <img src={`data:image/png;base64,${bode}`} alt="Bode Plot" />
+          ) : (
+            <p>Aguardando a seleção do método de controle...</p>
+          )}
         </div>
       </div>
     </div>

@@ -6,7 +6,7 @@ const ControlSystem = () => {
 
   useEffect(() => {
     // Conectando ao WebSocket mockado
-    const websocket = new WebSocket('ws://localhost:8080');
+    const websocket = new WebSocket('ws://127.0.0.1:8000/ws');
 
     websocket.onopen = () => {
       console.log('WebSocket connected');
