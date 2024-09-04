@@ -1,42 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import Button from '../components/Button';
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  LogarithmicScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend,
-} from 'chart.js';
-
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  LogarithmicScale,
-  PointElement,
-  LineElement,
-  Title,
-  Tooltip,
-  Legend
-);
 
 const Digital = () => {
-  const [samplingTime, setSamplingTime] = useState('');
-  const [tau, setTau] = useState('');
-  const [activeStrategy, setActiveStrategy] = useState('');
-  const [pidValues, setPidValues] = useState({ kp: 0, ki: 0, kd: 0 });
+  const [pidValues, setPidValues] = useState({
+    control_type: '',
+    kp: 0,
+    ki: 0,
+    kd: 0,
+    tau: 0,
+    ts: 0,
+    plot: false
+  });
   const [stepResponse, setStepResponse] = useState('');
   const [bode, setBode] = useState('');
   const [rootLocus, setRootLocus] = useState('');
 
-  const strategies = ['P', 'PI', 'PD', 'PID'];
-
-  const fetchControlData = async (controlType) => {
+  // Função para buscar dados de controle da API para o controle digital
+  const fetchControlData = async (controlType, tau, ts) => {
     try {
-      const response = await fetch(`http://localhost:8000/digital/${controlType.toLowerCase()}?sample_time=${samplingTime}&tau=${tau}`);
+      console.log(controlType);
+
+      const response = await fetch(`http://localhost:8000/digital/${controlType}?tau=${tau}&sample_time=${ts}`);
       if (!response.ok) {
         throw new Error('Failed to fetch control data');
       }
@@ -55,47 +39,48 @@ const Digital = () => {
     }
   };
 
+  // Efeito para conectar ao WebSocket
   useEffect(() => {
-    const websocket = new WebSocket('ws://localhost:8000/ws');
+    let websocket;
 
-    websocket.onopen = () => {
-      console.log('WebSocket connected');
+    const connectWebSocket = () => {
+      websocket = new WebSocket('ws://localhost:8000/ws');
+
+      websocket.onopen = () => {
+        console.log('WebSocket connected');
+      };
+
+      websocket.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+
+        console.log(data);
+
+        // Atualiza os valores do estado com os dados recebidos
+        setPidValues((prevValues) => ({
+          ...prevValues,
+          ...data,
+        }));
+
+        // Verifica se precisa buscar novos dados de controle digital
+        if (data.plot) {
+          fetchControlData(data.control_type, data.tau, data.ts);
+        }
+      };
+
+      websocket.onclose = () => {
+        console.log('WebSocket disconnected, attempting to reconnect...');
+        setTimeout(connectWebSocket, 1000); // Tentar reconectar após 1 segundo
+      };
     };
 
-    websocket.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      setPidValues(data);
-    };
-
-    websocket.onclose = () => {
-      console.log('WebSocket disconnected');
-    };
+    connectWebSocket();
 
     return () => {
-      websocket.close();
+      if (websocket) {
+        websocket.close();
+      }
     };
   }, []);
-
-  const handleStrategyClick = (strategy) => {
-    setActiveStrategy(strategy);
-    fetchControlData(strategy);
-  };
-
-  const handleTauInputChange = (e) => {
-    const value = e.target.value;
-    // Permitir apenas números e ponto decimal
-    if (/^\d*\.?\d*$/.test(value)) {
-      setTau(value);
-    }
-  };
-
-  const handleInputChange = (e) => {
-    const value = e.target.value;
-    // Permitir apenas números e ponto decimal
-    if (/^\d*\.?\d*$/.test(value)) {
-      setSamplingTime(value);
-    }
-  };
 
   return (
     <div className="min-h-screen bg-gradient-to-r from-green-400 to-blue-500 flex flex-row justify-center p-6">
@@ -103,56 +88,12 @@ const Digital = () => {
         <h2 className="text-3xl font-bold text-gray-800 mb-6 text-center">Sistema Digital</h2>
 
         <div className="mb-8">
-          <label htmlFor="samplingTime" className="block text-lg font-medium text-gray-700 mb-2">
-            Tempo de Amostragem (em segundos):
-          </label>
-          <input
-            type="text"
-            id="samplingTime"
-            value={samplingTime}
-            onChange={handleInputChange}
-            className="w-full border border-gray-300 rounded-md p-2 text-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="Insira o tempo de amostragem"
-          />
-        </div>
-
-        <div className="mb-8">
-          <label htmlFor="tau" className="block text-lg font-medium text-gray-700 mb-2">
-            Tau:
-          </label>
-          <input
-            type="text"
-            id="tau"
-            value={tau}
-            onChange={handleTauInputChange}
-            className="w-full border border-gray-300 rounded-md p-2 text-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="Insira o valor de tau"
-          />
-        </div>
-
-        <div className="mb-8">
           <h3 className="text-lg font-medium text-gray-700 mb-2">Valores de Controle PID:</h3>
           <p className="text-gray-800">Kp: {pidValues.kp}</p>
           <p className="text-gray-800">Ki: {pidValues.ki}</p>
           <p className="text-gray-800">Kd: {pidValues.kd}</p>
-        </div>
-
-        <div className="mb-8">
-          <h3 className="text-lg font-medium text-gray-700 mb-2">Escolha a Estratégia de Controle:</h3>
-          <div className="flex justify-center space-x-4">
-            {strategies.map((strategy) => (
-              <button
-                key={strategy}
-                onClick={() => handleStrategyClick(strategy)}
-                className={`py-2 px-4 rounded-lg transition duration-300 ${activeStrategy === strategy
-                  ? 'bg-green-600 text-white'
-                  : 'bg-gray-300 text-gray-700'
-                  }`}
-              >
-                {strategy}
-              </button>
-            ))}
-          </div>
+          <p className="text-gray-800">Tau: {pidValues.tau}</p>
+          <p className="text-gray-800">Ts: {pidValues.ts}</p>
         </div>
 
         <div className="flex justify-center">
