@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import HelpButton from '../components/HelpButton';
 
 const Home = () => {
   return (
@@ -30,6 +31,7 @@ const Home = () => {
           </Link>
         </div>
       </div>
+      <HelpButton />
     </div>
   );
 };

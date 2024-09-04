@@ -12,6 +12,8 @@ wss.on('connection', (ws) => {
       kp: Math.random().toFixed(2),
       ki: Math.random().toFixed(2),
       kd: Math.random().toFixed(2),
+      tau: 1,
+      ts: 1,
     });
     ws.send(mockData);
   }, 2000);
