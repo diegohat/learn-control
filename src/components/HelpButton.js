@@ -44,6 +44,19 @@ const HelpButton = ({ bgColor = 'bg-blue-500', hoverColor = 'hover:bg-blue-700',
               <FaTimes size={24} /> {/* Ícone de 'X' */}
             </button>
 
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold mb-4">Tutorial de uso do Simulador</h2>
+              <div className="aspect-w-16 aspect-h-9">
+                <iframe
+                  className="w-full h-96"
+                  src="https://www.youtube.com/embed/XKi54-5rfkk"
+                  title="YouTube video player"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                ></iframe>
+              </div>
+            </div>
+
             <h2 className="text-2xl font-bold mb-4">Modo de Uso - Sistema de Controle</h2>
             <div className="markdown-content">
               <ReactMarkdown
